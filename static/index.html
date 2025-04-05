@@ -3,6 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta http-equiv="ScreenOrientation" content="autoRotate:disabled">
     <title>Motion Detection System</title>
     <style>
         body {
@@ -512,10 +514,26 @@
                     
                     // Access webcam
                     if (videoSource.value === 'camera') {
-                        navigator.mediaDevices.getUserMedia({ video: true })
+                        // Request camera with more specific constraints for mobile
+                        const constraints = {
+                            video: {
+                                facingMode: 'environment', // Use the back camera by default
+                                width: { ideal: 1280 },
+                                height: { ideal: 720 }
+                            },
+                            audio: false
+                        };
+                        
+                        // iOS requires proper user gesture before accessing camera
+                        // This should be called directly from a user interaction (like a button click)
+                        navigator.mediaDevices.getUserMedia(constraints)
                             .then(function(stream) {
                                 cameraFeed.srcObject = stream;
+                                
+                                // For iOS Safari, setting srcObject is not enough
+                                // We need to manually play after metadata is loaded
                                 cameraFeed.onloadedmetadata = function() {
+                                    // Play needs to be a user gesture for mobile browsers
                                     cameraFeed.play()
                                         .then(() => {
                                             streaming = true;
@@ -524,13 +542,20 @@
                                         })
                                         .catch(err => {
                                             console.error('Error playing video:', err);
-                                            showNotification('Error starting video playback', true);
+                                            showNotification('Error starting video playback: ' + err.message, true);
                                         });
                                 };
                             })
                             .catch(function(err) {
                                 console.error('Error accessing webcam:', err);
-                                showNotification('Error accessing webcam', true);
+                                showNotification('Camera access error: ' + err.message, true);
+                                
+                                // Provide more user-friendly error for common permission issues
+                                if (err.name === 'NotAllowedError') {
+                                    showNotification('Camera permission denied. Please allow camera access in your browser settings.', true);
+                                } else if (err.name === 'NotFoundError') {
+                                    showNotification('No camera found on your device.', true);
+                                }
                             });
                     } else {
                         // File is already loaded via the file input
