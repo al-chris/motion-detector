@@ -1,0 +1,5 @@
+__pycache__/
+
+motion_captures/
+motion_captures/*.mp4
+motion_captures/*.avi

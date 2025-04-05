@@ -1,0 +1,838 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Motion Detection System</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f5f5f5;
+            color: #333;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        header {
+            background-color: #2c3e50;
+            color: white;
+            padding: 1rem;
+            text-align: center;
+            margin-bottom: 20px;
+            border-radius: 5px;
+        }
+        .dashboard {
+            display: grid;
+            grid-template-columns: 1fr 300px;
+            gap: 20px;
+        }
+        .video-container {
+            background-color: #fff;
+            border-radius: 5px;
+            padding: 20px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        .controls {
+            background-color: #fff;
+            border-radius: 5px;
+            padding: 20px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        .recordings {
+            background-color: #fff;
+            border-radius: 5px;
+            padding: 20px;
+            margin-top: 20px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            grid-column: span 2;
+        }
+        .main-video {
+            width: 100%;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            background-color: #000;
+        }
+        .status {
+            display: flex;
+            align-items: center;
+            margin-top: 10px;
+        }
+        .status-indicator {
+            width: 15px;
+            height: 15px;
+            border-radius: 50%;
+            background-color: #ccc;
+            margin-right: 10px;
+        }
+        .active {
+            background-color: #e74c3c;
+            animation: pulse 1.5s infinite;
+        }
+        .btn {
+            background-color: #3498db;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px 0;
+            width: 100%;
+            transition: background-color 0.3s;
+        }
+        .btn:hover {
+            background-color: #2980b9;
+        }
+        .btn-danger {
+            background-color: #e74c3c;
+        }
+        .btn-danger:hover {
+            background-color: #c0392b;
+        }
+        .btn-success {
+            background-color: #2ecc71;
+        }
+        .btn-success:hover {
+            background-color: #27ae60;
+        }
+        .recording-list {
+            max-height: 400px;
+            overflow-y: auto;
+            margin-top: 10px;
+        }
+        .recording-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px;
+            border-bottom: 1px solid #eee;
+        }
+        .recording-item:hover {
+            background-color: #f9f9f9;
+        }
+        .stats {
+            margin-top: 20px;
+        }
+        .settings-form {
+            margin-top: 20px;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        input[type="number"], input[type="text"] {
+            width: calc(100% - 20px);
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        .tabs {
+            display: flex;
+            margin-bottom: 15px;
+        }
+        .tab {
+            padding: 10px 15px;
+            background-color: #ddd;
+            cursor: pointer;
+            border-radius: 4px 4px 0 0;
+            margin-right: 5px;
+        }
+        .tab.active {
+            background-color: #3498db;
+            color: white;
+        }
+        .tab-content {
+            display: none;
+        }
+        .tab-content.active {
+            display: block;
+        }
+        @keyframes pulse {
+            0% {
+                opacity: 1;
+            }
+            50% {
+                opacity: 0.5;
+            }
+            100% {
+                opacity: 1;
+            }
+        }
+        .loading {
+            text-align: center;
+            padding: 20px;
+        }
+        .lds-ring {
+            display: inline-block;
+            position: relative;
+            width: 80px;
+            height: 80px;
+        }
+        .lds-ring div {
+            box-sizing: border-box;
+            display: block;
+            position: absolute;
+            width: 64px;
+            height: 64px;
+            margin: 8px;
+            border: 8px solid #3498db;
+            border-radius: 50%;
+            animation: lds-ring 1.2s cubic-bezier(0.5, 0, 0.5, 1) infinite;
+            border-color: #3498db transparent transparent transparent;
+        }
+        .lds-ring div:nth-child(1) {
+            animation-delay: -0.45s;
+        }
+        .lds-ring div:nth-child(2) {
+            animation-delay: -0.3s;
+        }
+        .lds-ring div:nth-child(3) {
+            animation-delay: -0.15s;
+        }
+        @keyframes lds-ring {
+            0% {
+                transform: rotate(0deg);
+            }
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+        .stream-source {
+            margin-bottom: 15px;
+        }
+        #notification {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background-color: rgba(46, 204, 113, 0.9);
+            color: white;
+            padding: 15px;
+            border-radius: 5px;
+            display: none;
+            z-index: 1000;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+        }
+        @media (max-width: 768px) {
+            .dashboard {
+                grid-template-columns: 1fr;
+            }
+            .recordings {
+                grid-column: span 1;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="notification"></div>
+    
+    <header>
+        <h1>Motion Detection System</h1>
+        <p>Efficient video monitoring with automatic motion detection</p>
+    </header>
+    
+    <div class="container">
+        <div class="dashboard">
+            <div class="video-container">
+                <h2>Live Stream</h2>
+                
+                <div class="stream-source">
+                    <select id="videoSource" class="form-control">
+                        <option value="camera">Camera</option>
+                        <option value="file">Video File</option>
+                    </select>
+                    <input type="file" id="videoFile" accept="video/*" style="display: none;">
+                </div>
+                
+                <div id="streamContainer">
+                    <video id="cameraFeed" class="main-video" autoplay playsinline></video>
+                    <canvas id="videoCanvas" class="main-video"></canvas>
+                </div>
+                
+                <div class="status">
+                    <div id="motionIndicator" class="status-indicator"></div>
+                    <span id="motionStatus">No motion detected</span>
+                </div>
+                
+                <div class="status">
+                    <div id="recordingIndicator" class="status-indicator"></div>
+                    <span id="recordingStatus">Not recording</span>
+                </div>
+            </div>
+            
+            <div class="controls">
+                <div class="tabs">
+                    <div class="tab active" data-tab="controls-tab">Controls</div>
+                    <div class="tab" data-tab="settings-tab">Settings</div>
+                    <div class="tab" data-tab="stats-tab">Stats</div>
+                </div>
+                
+                <div id="controls-tab" class="tab-content active">
+                    <h3>Stream Controls</h3>
+                    <button id="startStream" class="btn btn-success">Start Stream</button>
+                    <button id="stopStream" class="btn btn-danger">Stop Stream</button>
+                    
+                    <div class="stats">
+                        <p>Connection Status: <span id="connectionStatus">Disconnected</span></p>
+                        <p>Last Motion: <span id="lastMotion">Never</span></p>
+                    </div>
+                </div>
+                
+                <div id="settings-tab" class="tab-content">
+                    <h3>Detection Settings</h3>
+                    <div class="settings-form">
+                        <div class="form-group">
+                            <label for="pixelThreshold">Pixel Threshold:</label>
+                            <input type="number" id="pixelThreshold" min="1" max="100" value="30">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="motionThreshold">Motion Threshold (%):</label>
+                            <input type="number" id="motionThreshold" min="0.1" max="20" step="0.1" value="1">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="bufferSeconds">Buffer Seconds:</label>
+                            <input type="number" id="bufferSeconds" min="1" max="10" value="3">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="minRecordingTime">Min Recording Time (s):</label>
+                            <input type="number" id="minRecordingTime" min="1" max="60" value="5">
+                        </div>
+                        
+                        <button id="saveSettings" class="btn">Save Settings</button>
+                    </div>
+                </div>
+                
+                <div id="stats-tab" class="tab-content">
+                    <h3>System Statistics</h3>
+                    <div class="stats">
+                        <p>Total Recordings: <span id="totalRecordings">0</span></p>
+                        <p>Storage Used: <span id="storageUsed">0 MB</span></p>
+                        <p>Uptime: <span id="uptime">0m</span></p>
+                        <p>FPS: <span id="currentFps">0</span></p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="recordings">
+                <h2>Recorded Motion Events</h2>
+                <button id="refreshRecordings" class="btn">Refresh List</button>
+                
+                <div class="recording-list" id="recordingsList">
+                    <div class="loading">
+                        <div class="lds-ring"><div></div><div></div><div></div><div></div></div>
+                        <p>Loading recordings...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // DOM Elements
+            const videoSource = document.getElementById('videoSource');
+            const videoFile = document.getElementById('videoFile');
+            const cameraFeed = document.getElementById('cameraFeed');
+            const videoCanvas = document.getElementById('videoCanvas');
+            const ctx = videoCanvas.getContext('2d');
+            const motionIndicator = document.getElementById('motionIndicator');
+            const motionStatus = document.getElementById('motionStatus');
+            const recordingIndicator = document.getElementById('recordingIndicator');
+            const recordingStatus = document.getElementById('recordingStatus');
+            const connectionStatus = document.getElementById('connectionStatus');
+            const lastMotion = document.getElementById('lastMotion');
+            const totalRecordings = document.getElementById('totalRecordings');
+            const storageUsed = document.getElementById('storageUsed');
+            const uptime = document.getElementById('uptime');
+            const currentFps = document.getElementById('currentFps');
+            const recordingsList = document.getElementById('recordingsList');
+            const startStream = document.getElementById('startStream');
+            const stopStream = document.getElementById('stopStream');
+            const refreshRecordings = document.getElementById('refreshRecordings');
+            const saveSettings = document.getElementById('saveSettings');
+            
+            // Tab switching
+            const tabs = document.querySelectorAll('.tab');
+            const tabContents = document.querySelectorAll('.tab-content');
+            
+            tabs.forEach(tab => {
+                tab.addEventListener('click', () => {
+                    const tabId = tab.getAttribute('data-tab');
+                    
+                    tabs.forEach(t => t.classList.remove('active'));
+                    tabContents.forEach(c => c.classList.remove('active'));
+                    
+                    tab.classList.add('active');
+                    document.getElementById(tabId).classList.add('active');
+                });
+            });
+            
+            // WebSocket Connection
+            let ws = null;
+            let streaming = false;
+            let startTime = null;
+            let frameCount = 0;
+            let lastFrameTime = 0;
+            let fpsUpdateInterval;
+            let reconnectAttempts = 0;
+            let maxReconnectAttempts = 5;
+            let reconnectInterval = 2000; // 2 seconds
+            
+            // Settings
+            const settings = {
+                pixelThreshold: 30,
+                motionThreshold: 1.0,
+                bufferSeconds: 3,
+                minRecordingTime: 5
+            };
+            
+            // Video Source Handling
+            videoSource.addEventListener('change', function() {
+                if (this.value === 'file') {
+                    videoFile.style.display = 'block';
+                    videoFile.click();
+                } else {
+                    videoFile.style.display = 'none';
+                }
+            });
+            
+            videoFile.addEventListener('change', function() {
+                if (this.files && this.files[0]) {
+                    const file = this.files[0];
+                    cameraFeed.src = URL.createObjectURL(file);
+                    cameraFeed.load();
+                    cameraFeed.play();
+                }
+            });
+            
+            // Initialize WebSocket Connection
+            function connectWebSocket() {
+                if (ws && (ws.readyState === WebSocket.CONNECTING || ws.readyState === WebSocket.OPEN)) {
+                    console.log('WebSocket already connected or connecting');
+                    return;
+                }
+                
+                // Reset reconnect attempts if this is a manual connection
+                if (!streaming) {
+                    reconnectAttempts = 0;
+                }
+                
+                // Get the current host and port from the window location
+                const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+                const wsUrl = `${protocol}//${window.location.host}/ws/video-stream`;
+                
+                console.log(`Connecting to WebSocket at ${wsUrl}`);
+                ws = new WebSocket(wsUrl);
+                
+                ws.onopen = function() {
+                    console.log('WebSocket connected');
+                    connectionStatus.textContent = 'Connected';
+                    connectionStatus.style.color = '#2ecc71';
+                    showNotification('Connected to server');
+                    
+                    // Reset reconnect counter on successful connection
+                    reconnectAttempts = 0;
+                    
+                    startTime = new Date();
+                    startFpsCounter();
+                };
+                
+                ws.onclose = function(event) {
+                    console.log(`WebSocket disconnected (code: ${event.code}, reason: ${event.reason})`);
+                    connectionStatus.textContent = 'Disconnected';
+                    connectionStatus.style.color = '#e74c3c';
+                    
+                    // Only try to reconnect if we were streaming
+                    if (streaming && reconnectAttempts < maxReconnectAttempts) {
+                        reconnectAttempts++;
+                        showNotification(`Connection lost. Reconnecting (${reconnectAttempts}/${maxReconnectAttempts})...`);
+                        setTimeout(connectWebSocket, reconnectInterval);
+                    } else if (reconnectAttempts >= maxReconnectAttempts) {
+                        streaming = false;
+                        showNotification('Failed to reconnect after multiple attempts. Please try again manually.', true);
+                    }
+                    
+                    stopFpsCounter();
+                };
+                
+                ws.onerror = function(err) {
+                    console.error('WebSocket error:', err);
+                    connectionStatus.textContent = 'Error';
+                    connectionStatus.style.color = '#e74c3c';
+                    // Don't show notification here, the onclose handler will be called next and show a reconnection message
+                };
+                
+                ws.onmessage = function(event) {
+                    try {
+                        const data = JSON.parse(event.data);
+                        
+                        // Update motion status
+                        updateMotionStatus(data.motion_detected);
+                        
+                        // Display the processed frame
+                        if (data.frame) {
+                            const img = new Image();
+                            img.onload = function() {
+                                if (videoCanvas) {
+                                    videoCanvas.width = img.width;
+                                    videoCanvas.height = img.height;
+                                    ctx.drawImage(img, 0, 0);
+                                    
+                                    // Update FPS calculation
+                                    frameCount++;
+                                    lastFrameTime = performance.now();
+                                }
+                            };
+                            img.onerror = function(e) {
+                                console.error('Error loading image:', e);
+                            };
+                            img.src = data.frame;
+                        }
+                    } catch (error) {
+                        console.error('Error processing server message:', error);
+                    }
+                };
+            }
+            
+            // Start/Stop Stream Functions
+            function startVideoStream() {
+                if (!streaming) {
+                    if (!ws || ws.readyState !== WebSocket.OPEN) {
+                        connectWebSocket();
+                    }
+                    
+                    // Access webcam
+                    if (videoSource.value === 'camera') {
+                        navigator.mediaDevices.getUserMedia({ video: true })
+                            .then(function(stream) {
+                                cameraFeed.srcObject = stream;
+                                cameraFeed.onloadedmetadata = function() {
+                                    cameraFeed.play()
+                                        .then(() => {
+                                            streaming = true;
+                                            startFrameCapture();
+                                            showNotification('Stream started');
+                                        })
+                                        .catch(err => {
+                                            console.error('Error playing video:', err);
+                                            showNotification('Error starting video playback', true);
+                                        });
+                                };
+                            })
+                            .catch(function(err) {
+                                console.error('Error accessing webcam:', err);
+                                showNotification('Error accessing webcam', true);
+                            });
+                    } else {
+                        // File is already loaded via the file input
+                        if (cameraFeed.src) {
+                            cameraFeed.onloadedmetadata = function() {
+                                cameraFeed.play()
+                                    .then(() => {
+                                        streaming = true;
+                                        startFrameCapture();
+                                        showNotification('Stream started from file');
+                                    })
+                                    .catch(err => {
+                                        console.error('Error playing video file:', err);
+                                        showNotification('Error playing video file', true);
+                                    });
+                            };
+                        } else {
+                            showNotification('Please select a video file first', true);
+                        }
+                    }
+                }
+            }
+
+            
+            function stopVideoStream() {
+                if (streaming) {
+                    streaming = false;
+                    
+                    if (cameraFeed.srcObject) {
+                        const tracks = cameraFeed.srcObject.getTracks();
+                        tracks.forEach(track => track.stop());
+                        cameraFeed.srcObject = null;
+                    }
+                    
+                    if (ws && ws.readyState === WebSocket.OPEN) {
+                        ws.close();
+                    }
+                    
+                    showNotification('Stream stopped');
+                }
+            }
+            
+            // Send video frames to server
+            function startFrameCapture() {
+                if (!streaming) return;
+                
+                try {
+                    // Check if connection is open
+                    if (!ws || ws.readyState !== WebSocket.OPEN) {
+                        console.log('WebSocket not connected, attempting to reconnect...');
+                        connectWebSocket();
+                        // Try again in a short while
+                        setTimeout(startFrameCapture, 100);
+                        return;
+                    }
+                    
+                    // Draw current video frame to canvas
+                    if ((videoSource.value === 'camera' && cameraFeed.srcObject) || 
+                        (videoSource.value === 'file' && !cameraFeed.paused)) {
+                        
+                        if (cameraFeed.videoWidth > 0 && cameraFeed.videoHeight > 0) {
+                            videoCanvas.width = cameraFeed.videoWidth;
+                            videoCanvas.height = cameraFeed.videoHeight;
+                            ctx.drawImage(cameraFeed, 0, 0);
+                            
+                            // Convert canvas to JPEG blob
+                            videoCanvas.toBlob(function(blob) {
+                                if (!blob) {
+                                    console.error("Failed to create blob from canvas");
+                                    if (streaming) {
+                                        requestAnimationFrame(startFrameCapture);
+                                    }
+                                    return;
+                                }
+                                
+                                // Read blob as base64
+                                const reader = new FileReader();
+                                reader.onloadend = function() {
+                                    if (!reader.result) {
+                                        console.error("Failed to read blob as base64");
+                                        if (streaming) {
+                                            requestAnimationFrame(startFrameCapture);
+                                        }
+                                        return;
+                                    }
+                                    
+                                    const base64data = reader.result;
+                                    
+                                    // Send frame to server if connection is open
+                                    if (ws && ws.readyState === WebSocket.OPEN) {
+                                        try {
+                                            const data = {
+                                                frame: base64data,
+                                                timestamp: new Date().toISOString()
+                                            };
+                                            
+                                            ws.send(JSON.stringify(data));
+                                        } catch (error) {
+                                            console.error("Error sending frame to server:", error);
+                                        }
+                                    } else {
+                                        console.warn("WebSocket not ready, frame skipped");
+                                    }
+                                    
+                                    // Continue capturing frames
+                                    if (streaming) {
+                                        requestAnimationFrame(startFrameCapture);
+                                    }
+                                };
+                                
+                                reader.onerror = function(error) {
+                                    console.error("Error reading blob as base64:", error);
+                                    if (streaming) {
+                                        requestAnimationFrame(startFrameCapture);
+                                    }
+                                };
+                                
+                                reader.readAsDataURL(blob);
+                            }, 'image/jpeg', 0.8);
+                        } else {
+                            console.warn("Video dimensions not available yet");
+                            if (streaming) {
+                                requestAnimationFrame(startFrameCapture);
+                            }
+                        }
+                    } else {
+                        console.warn("Video source not ready");
+                        if (streaming) {
+                            setTimeout(startFrameCapture, 100);
+                        }
+                    }
+                } catch (error) {
+                    console.error("Error capturing frame:", error);
+                    if (streaming) {
+                        setTimeout(startFrameCapture, 100);
+                    }
+                }
+            }
+            
+            // Update UI for motion detection
+            function updateMotionStatus(isMotionDetected) {
+                if (isMotionDetected) {
+                    motionIndicator.classList.add('active');
+                    motionStatus.textContent = 'Motion detected!';
+                    motionStatus.style.color = '#e74c3c';
+                    lastMotion.textContent = new Date().toLocaleTimeString();
+                    
+                    // Update recording status
+                    recordingIndicator.classList.add('active');
+                    recordingStatus.textContent = 'Recording';
+                    recordingStatus.style.color = '#e74c3c';
+                } else {
+                    motionIndicator.classList.remove('active');
+                    motionStatus.textContent = 'No motion detected';
+                    motionStatus.style.color = '#333';
+                    
+                    // Note: We don't immediately update recording status since
+                    // recording continues for the buffer period after motion stops
+                }
+            }
+            
+            // FPS Counter
+            function startFpsCounter() {
+                stopFpsCounter(); // Clear any existing interval
+                
+                fpsUpdateInterval = setInterval(() => {
+                    // Update FPS display
+                    if (frameCount > 0 && lastFrameTime > 0) {
+                        const now = performance.now();
+                        const elapsedSeconds = (now - lastFrameTime) / 1000;
+                        if (elapsedSeconds > 0) {
+                            const fps = Math.round(frameCount / elapsedSeconds);
+                            currentFps.textContent = fps;
+                            frameCount = 0;
+                            lastFrameTime = now;
+                        }
+                    }
+                    
+                    // Update uptime
+                    if (startTime) {
+                        const uptimeMs = new Date() - startTime;
+                        const uptimeSec = Math.floor(uptimeMs / 1000);
+                        const minutes = Math.floor(uptimeSec / 60);
+                        const seconds = uptimeSec % 60;
+                        uptime.textContent = `${minutes}m ${seconds}s`;
+                    }
+                }, 1000);
+            }
+            
+            function stopFpsCounter() {
+                if (fpsUpdateInterval) {
+                    clearInterval(fpsUpdateInterval);
+                }
+            }
+            
+            // Load recordings from server
+            function loadRecordings() {
+                fetch('/motion-captures')
+                    .then(response => response.json())
+                    .then(data => {
+                        const recordings = data.captures || [];
+                        totalRecordings.textContent = recordings.length;
+                        
+                        // Calculate total storage used
+                        const totalBytes = recordings.reduce((total, recording) => total + recording.size_bytes, 0);
+                        const totalMB = (totalBytes / (1024 * 1024)).toFixed(2);
+                        storageUsed.textContent = `${totalMB} MB`;
+                        
+                        // Clear loading indicator
+                        recordingsList.innerHTML = '';
+                        
+                        if (recordings.length === 0) {
+                            recordingsList.innerHTML = '<p>No recordings found</p>';
+                            return;
+                        }
+                        
+                        // Display recordings
+                        recordings.forEach(recording => {
+                            const recordingItem = document.createElement('div');
+                            recordingItem.className = 'recording-item';
+                            
+                            const date = new Date(recording.created);
+                            const formattedDate = date.toLocaleString();
+                            const fileSizeMB = (recording.size_bytes / (1024 * 1024)).toFixed(2);
+                            
+                            recordingItem.innerHTML = `
+                                <div>
+                                    <strong>${recording.filename}</strong>
+                                    <div>${formattedDate}</div>
+                                    <div>${fileSizeMB} MB</div>
+                                </div>
+                                <div>
+                                    <a href="/motion-captures/${recording.filename}" target="_blank" class="btn">View</a>
+                                </div>
+                            `;
+                            
+                            recordingsList.appendChild(recordingItem);
+                        });
+                    })
+                    .catch(error => {
+                        console.error('Error loading recordings:', error);
+                        recordingsList.innerHTML = '<p>Error loading recordings</p>';
+                    });
+            }
+            
+            // Save detection settings
+            function saveDetectionSettings() {
+                settings.pixelThreshold = parseInt(document.getElementById('pixelThreshold').value);
+                settings.motionThreshold = parseFloat(document.getElementById('motionThreshold').value);
+                settings.bufferSeconds = parseInt(document.getElementById('bufferSeconds').value);
+                settings.minRecordingTime = parseInt(document.getElementById('minRecordingTime').value);
+                
+                // In a real implementation, you would send these settings to the server
+                // For this demo, we'll just show a notification
+                showNotification('Settings saved');
+                
+                // Here you would typically send the settings to the server:
+                /*
+                fetch('/api/settings', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(settings),
+                })
+                .then(response => response.json())
+                .then(data => {
+                    showNotification('Settings saved');
+                })
+                .catch(error => {
+                    showNotification('Error saving settings', true);
+                });
+                */
+            }
+            
+            // Notification system
+            function showNotification(message, isError = false) {
+                const notification = document.getElementById('notification');
+                notification.textContent = message;
+                notification.style.backgroundColor = isError ? 'rgba(231, 76, 60, 0.9)' : 'rgba(46, 204, 113, 0.9)';
+                notification.style.display = 'block';
+                
+                setTimeout(() => {
+                    notification.style.display = 'none';
+                }, 3000);
+            }
+            
+            // Event Listeners
+            startStream.addEventListener('click', startVideoStream);
+            stopStream.addEventListener('click', stopVideoStream);
+            refreshRecordings.addEventListener('click', loadRecordings);
+            saveSettings.addEventListener('click', saveDetectionSettings);
+            
+            // Initialize
+            loadRecordings();
+            
+            // Initialize settings form
+            document.getElementById('pixelThreshold').value = settings.pixelThreshold;
+            document.getElementById('motionThreshold').value = settings.motionThreshold;
+            document.getElementById('bufferSeconds').value = settings.bufferSeconds;
+            document.getElementById('minRecordingTime').value = settings.minRecordingTime;
+        });
+    </script>
+</body>
+</html>
